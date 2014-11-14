@@ -3,13 +3,10 @@
 import urllib2
 import datetime
 import re
+import time
 #html parser
 from bs4 import BeautifulSoup
 
-#constants
-IMDB_BASE_URL = "http://www.imdb.com"
-FANDANGO_BASE_URL = "http://www.fandango.com"
-TODAY = datetime.datetime.now()
 
 class imdb_aginator:
 	def __init__(self, title):
@@ -19,45 +16,51 @@ class imdb_aginator:
 		self.age = 0
 		self.date_format = "%Y-%m-%d"
 		self.today = datetime.datetime.now()
+		self.base_url = "http://www.imdb.com"
 
 	def __str__(self):
-		return "The average age for the movie %s is %d" % (self.title, self.age) 
+		return "The average age for the cast of the movie '%s' is %d" % (self.title, self.age) 
 
 	def aginate(self):
 		self.age = self.total_age/self.total_cast
 
-	def find_age(self, birthdate):
+	def calculate(self, birthdate):
 		birthdate = datetime.datetime.strptime(birthdate, self.date_format)
 		age = self.today.year - birthdate.year
 		if ((self.today.month, self.today.day) < (birthdate.month, birthdate.day)):
 			age -= 1
-		return age
+		aginator.total_age += age
+		aginator.total_cast += 1
+
+	def sanitize(self):
+		return self.title.replace(" ", "+")
 		 
 
 def get_cast(movie):
 	#find all members of the cast
 	#adding the year in case of duplicate movie name/movie reboot
 	print 'processing.....'
-	url = IMDB_BASE_URL + "/find?q=" + movie + "+" + str(TODAY.year) + "&s=tt"
+	aginator = imdb_aginator(movie)
+	url = aginator.base_url + "/find?q=" + aginator.sanitize() + "+" + str(aginator.today.year) + "&s=tt"
 	imdb_soup = souper(url)
 	titles_div = imdb_soup.find(class_="findList")
 	movie_link = titles_div.find("a")["href"]
 	matches = re.search('tt[0-9]+', movie_link)
 	movie_id = matches.group(0)
-	url = IMDB_BASE_URL + "/title/" + movie_id + "/fullcredits"
+	url = aginator.base_url + "/title/" + movie_id + "/fullcredits"
 	imdb_soup = souper(url)
 	cast_table = imdb_soup.find(class_="cast_list")
 	cast_tds = cast_table.find_all("td", itemprop="actor")
-	aginator = imdb_aginator(movie)
 	for td in cast_tds:
+		#hitting the imdb servers too hard might cause temporary ip blocking
+		#time.sleep(1)
 		m = re.search('nm[0-9]+', td.a['href'])
 		actor_id = m.group(0)
-		url = IMDB_BASE_URL + "/name/" + actor_id
+		url = aginator.base_url + "/name/" + actor_id
 		imdb_soup = souper(url)
 		try:
 			birthdate = imdb_soup.find('time')['datetime']
-			aginator.total_age += aginator.find_age(birthdate)
-			aginator.total_cast += 1
+			aginator.calculate(birthdate)
 		except:
 			#skip actor that has no birthday on file
 			pass
@@ -75,7 +78,8 @@ def begin():
 		title = li.find(class_="visual-title").text.strip()
 		get_cast(title)
 		counter += 1
-		print "Finished %d/%d movies" % (counter, num_movies)
+		if counter % 5 == 0:
+			print "Finished %d/%d movies" % (counter, num_movies)
 
 
 def souper(url):
@@ -88,3 +92,4 @@ def souper(url):
 
 if __name__ == "__main__":
 	begin()
+	print "Complete"
