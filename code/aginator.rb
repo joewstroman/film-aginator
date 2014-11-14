@@ -1,19 +1,25 @@
 #!/usr/bin/env ruby
 
-require 'Time'
+require 'time'
+require 'nokogiri'
+require 'open-uri'
 
 class Parser
-	def parse
-		#return parsed html
+	def initialize
+		@page = ''
 	end
 
-	def url_opener
-		#
+	#override in specific page class in this case imdb_aginator
+	def parse; end
+
+	def url_opener(url)
+		@page = Nokogiri::HTML(open('http://en.wikipedia.org/wiki/HTML'))
 	end
 end
 
 class Aginator < Parser
 	def initialize
+		super()
 		@total_cast = 0
 		@total_age = 0
 		@age = 0
@@ -51,5 +57,18 @@ class IMDB_Aginator < Aginator
 
 	def sanitize
 		@title.sub ' ', '+'
+	end
+
+	#make method for each type of data being scraped
+	#one to get title list of potential movies
+	#one for the cast list
+	#one to get each individual members age
+	#this should be generic enough for any site parser
+
+	#OR
+
+	#send in url and all selectors in a list and just parse in that order
+	def parse(url)
+		@opener()
 	end
 end
