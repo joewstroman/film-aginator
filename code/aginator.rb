@@ -15,6 +15,7 @@ class Parser
 
 	#send in url and all selectors in a list and just parse in that order
 	def parse(url, selectors, limiter=false)
+		puts url
 		page = url_opener url
 		if limiter
 			page.at_css selectors
@@ -124,7 +125,12 @@ class Imdb_Aginator < Aginator
 			date_tag = parse url, "time", true
 			if date_tag
 				date = date_tag.attr "datetime"
-				calculate date
+				#some pages dont have full dates, which causes errors with the Time object
+				if not date[/0-/]
+					date = date.gsub /-0$/, "-1"
+					date = date.gsub "-0-", "-1-"
+					calculate date
+				end
 			end
 		end
 	end
