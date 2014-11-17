@@ -169,6 +169,6 @@ fp.now_playing.each do |title|
 	puts aginator
 	counter += 1
 	if counter % 5 == 0
-		puts "Finished #{counter}/#{now_playing.length} movies"
+		puts "Finished #{counter}/#{fp.now_playing.length} movies"
 	end
 end
