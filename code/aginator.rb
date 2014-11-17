@@ -100,12 +100,6 @@ class Imdb_Aginator < Aginator
 		end
 	end
 
-	#make method for each type of data being scraped
-	#one to get title list of potential movies
-	#one for the cast list
-	#one to get each individual members age
-	#this should be generic enough for any site parser
-
 	def get_movie
 		query = sanitize
 		url = "#{@base_url}/find?q=#{query}&s=tt"
