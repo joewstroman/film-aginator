@@ -10,7 +10,7 @@ class Parser
 	end
 
 	def url_opener(url)
-		page = Nokogiri::HTML(open(url))
+		page = Nokogiri::HTML(open(URI::encode(url)))
 	end
 
 	#send in url and string of selectors in a list and just parse in that order
@@ -73,11 +73,14 @@ class Aginator < Parser
 
 	def aginate
 		puts "Currently processing: #{@title}"
-		start
 		begin
+			start
 			average
-		rescue ZeroDivisionError
-			puts "Error: Total cast members is 0, check if cast information is available."
+		rescue => error
+			#possible handling of multiple errors
+			if error.class == 'ZeroDivisionError'
+				puts "Error: Total cast members is 0, check if cast information is available."
+			end
 		end
 	end
 end
