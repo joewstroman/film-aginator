@@ -43,6 +43,7 @@ class Aginator < Parser
 		@total_age = 0
 		@age = 0
 		@today = Time.new
+		@year = "#{@today.year}"
 		@movie_id = ""
 		@cast_id = ""
 		@returned_tags = nil
@@ -72,7 +73,11 @@ class Aginator < Parser
 	def aginate
 		puts "Currently processing: #{@title}"
 		start
-		average
+		begin
+			average
+		rescue ZeroDivisionError
+			puts "Error: Total cast members is 0, check if cast information is available."
+		end
 	end
 end
 
@@ -90,6 +95,9 @@ class Imdb_Aginator < Aginator
 
 	def sanitize
 		@title.gsub ' ', '+'
+		if not @title.include? @year
+			@title += "+#{@year}"
+		end
 	end
 
 	#make method for each type of data being scraped
@@ -100,7 +108,6 @@ class Imdb_Aginator < Aginator
 
 	def get_movie
 		query = sanitize
-		query = "#{query}+#{@today.year}"
 		url = "#{@base_url}/find?q=#{query}&s=tt"
 		movie_list_html = parse url, ".findList a", true
 		href = movie_list_html.attr("href")
@@ -126,7 +133,7 @@ class Imdb_Aginator < Aginator
 			if date_tag
 				date = date_tag.attr "datetime"
 				#some pages dont have full dates, which causes errors with the Time object
-				if not date[/0-/]
+				if not date[/^0-/]
 					date = date.gsub /-0$/, "-1"
 					date = date.gsub "-0-", "-1-"
 					calculate date
