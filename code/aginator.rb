@@ -6,14 +6,32 @@ require 'open-uri'
 
 class Parser
 	def initialize
-		@page = ''
+		@returned_value = nil
 	end
 
-	#override in specific page class in this case imdb_aginator
-	def parse; end
-
 	def url_opener(url)
-		@page = Nokogiri::HTML(open('http://en.wikipedia.org/wiki/HTML'))
+		page = Nokogiri::HTML(open(url))
+	end
+
+	#send in url and all selectors in a list and just parse in that order
+	def parse(url, selectors, limiter=false)
+		page = url_opener url
+		if limiter
+			page.at_css selectors
+		else
+			page.css selectors
+		end
+	end
+
+	def start
+		@parse_order.each do |message|
+			if @returned_value
+				@returned_value = send "get_#{message}", @returned_value
+			else
+				@returned_value = send "get_#{message}"
+			end
+		end
+		@returned_value = nil
 	end
 end
 
@@ -26,6 +44,7 @@ class Aginator < Parser
 		@today = Time.new
 		@movie_id = ""
 		@cast_id = ""
+		@returned_tags = nil
 	end
 
 	def average
@@ -39,8 +58,10 @@ class Aginator < Parser
 			age -= 1
 		elsif @today.month == birthdate.month and @today.day < birthdate.day
 			age -= 1
+		end
 		@total_age += age
 		@total_cast += 1
+	end
 
 	#maybe unnecessary getter method
 	def today
@@ -48,14 +69,13 @@ class Aginator < Parser
 	end
 
 	def aginate
-		@parse_order.each do |message|
-			@send "get_#{message}"
-		end
-		@average
+		puts "Currently processing: #{@title}"
+		start
+		average
 	end
 end
 
-class IMDB_Aginator < Aginator
+class Imdb_Aginator < Aginator
 	def initialize(title)
 		super()
 		@base_url = "http://www.imdb.com"
@@ -68,7 +88,7 @@ class IMDB_Aginator < Aginator
 	end
 
 	def sanitize
-		@title.sub ' ', '+'
+		@title.gsub ' ', '+'
 	end
 
 	#make method for each type of data being scraped
@@ -78,40 +98,71 @@ class IMDB_Aginator < Aginator
 	#this should be generic enough for any site parser
 
 	def get_movie
-		query = @sanitize
+		query = sanitize
 		query = "#{query}+#{@today.year}"
 		url = "#{@base_url}/find?q=#{query}&s=tt"
-		movie_list_html = @parse url, ".findList a", true
+		movie_list_html = parse url, ".findList a", true
 		href = movie_list_html.attr("href")
 		movie_id = href[/tt[0-9]+/]
 	end
 
 	def get_cast(id)
 		url = "#{@base_url}/title/#{id}/fullcredits"
-		@cast_tags = @parse url, "a[itemprop='url']"
-		@cast_tags.each do |cast_tag|
-			href = cast_tag.attr("href")
+		cast_tags = parse url, "*[itemprop='actor'] a"
+		cast_ids = []
+		cast_tags.each do |cast_tag|
+			href = cast_tag.attr "href"
 			cast_id = href[/nm[0-9]+/]
-			get_birthdate cast_id
+			cast_ids << cast_id
 		end
+		cast_ids
 	end
 
-	def get_birthdate(id)
-		url = "#{@base_url}/name/#{id}"
-		date_tag = @parse url, "time", true
-		@calculate date_tag.attr "datetime"
+	def get_birthdate(ids)
+		ids.each do |id|
+			url = "#{@base_url}/name/#{id}"
+			date_tag = parse url, "time", true
+			if date_tag
+				date = date_tag.attr "datetime"
+				calculate date
+			end
+		end
+	end
+end
+
+class Fandango_parser < Parser
+	def initialize
+		@base_url = "http://www.fandango.com"
+		@now_playing = []
+		@parse_order = ["movies"]
 	end
 
-	#OR
-
-	#send in url and all selectors in a list and just parse in that order
-	def parse(url, selectors, limiter=false)
-		@url_opener url
-		if limiter
-			@page.at_css selectors
-		else
-			@page.css selectors
+	def get_movies
+		url = "#{@base_url}/moviesintheaters"
+		title_tags = parse url, "#now_playing_np_div .visual-title"
+		title_tags.each do |tag|
+			@now_playing << tag.text.strip
 		end
+		puts "Total movies showing in theatres: #{@now_playing.length}"
+	end
 
+	def now_playing
+		@now_playing
+	end
+end
+
+
+#setup
+puts "Collecting list of movies in theaters"
+fp = Fandango_parser.new
+fp.start
+counter = 0
+fp.now_playing.each do |title|
+	aginator = Imdb_Aginator.new title
+	aginator.aginate
+	puts aginator
+	counter += 1
+	if counter % 5 == 0
+		puts "Finished #{counter}/#{now_playing.length} movies"
 	end
 end
