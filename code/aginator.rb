@@ -13,9 +13,8 @@ class Parser
 		page = Nokogiri::HTML(open(url))
 	end
 
-	#send in url and all selectors in a list and just parse in that order
+	#send in url and string of selectors in a list and just parse in that order
 	def parse(url, selectors, limiter=false)
-		puts url
 		page = url_opener url
 		if limiter
 			page.at_css selectors
@@ -24,6 +23,8 @@ class Parser
 		end
 	end
 
+	#made so that any parser can have different methods that need to be executed
+	#since web site structures can vary in multiple ways
 	def start
 		@parse_order.each do |message|
 			if @returned_value
@@ -173,3 +174,4 @@ fp.now_playing.each do |title|
 		puts "Finished #{counter}/#{fp.now_playing.length} movies"
 	end
 end
+puts "Complete"
